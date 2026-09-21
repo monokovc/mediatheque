@@ -9,6 +9,7 @@ import com.chaquo.python.android.AndroidPlatform;
 
 public class App extends Application {
     public static volatile boolean serverStarted = false;
+    public static volatile int serverPort = 0;
     public static volatile String serverError = null;
 
     @Override
@@ -25,7 +26,8 @@ public class App extends Application {
                         getExternalFilesDir(null) != null
                                 ? getExternalFilesDir(null).getAbsolutePath()
                                 : getFilesDir().getAbsolutePath());
-                py.getModule("mediatheque").callAttr("start_embedded");
+                PyObject port = py.getModule("mediatheque").callAttr("start_embedded");
+                serverPort = port.toInt();
                 serverStarted = true;
             } catch (Throwable t) {
                 Log.e("Mediatheque", "Erreur serveur", t);
