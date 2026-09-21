@@ -2007,9 +2007,19 @@ def main():
 
 def start_embedded():
     """Appele par l'appli Android : demarre le serveur dans un thread, sans fenetre."""
+    global PORT
     os.makedirs(THUMB_DIR, exist_ok=True)
     LIB.load()
-    srv = Server(("0.0.0.0", PORT), Handler)
+    srv, err = None, None
+    for cand in list(range(8765, 8790)):
+        try:
+            srv = Server(("0.0.0.0", cand), Handler)
+            PORT = cand
+            break
+        except OSError as exc:
+            err = exc
+    if srv is None:
+        raise err
     srv.daemon_threads = True
     threading.Thread(target=watch_drives, daemon=True).start()
     threading.Thread(target=autosave, daemon=True).start()
