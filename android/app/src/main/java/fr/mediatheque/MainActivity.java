@@ -31,7 +31,7 @@ import java.io.File;
 import java.net.Socket;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String URL = "http://127.0.0.1:8765/";
+    private static String url() { return "http://127.0.0.1:" + App.serverPort + "/"; }
     private WebView web;
     private TextView loading;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -68,10 +68,12 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             boolean up = false;
-            try (Socket sock = new Socket("127.0.0.1", 8765)) { up = true; } catch (Exception ignored) {}
+            if (App.serverPort > 0) {
+                try (Socket sock = new Socket("127.0.0.1", App.serverPort)) { up = true; } catch (Exception ignored) {}
+            }
             if (up) {
                 loading.setVisibility(View.GONE);
-                if (!loaded) { loaded = true; web.loadUrl(URL); }
+                if (!loaded) { loaded = true; web.loadUrl(url()); }
             } else {
                 waitForServer();
             }
