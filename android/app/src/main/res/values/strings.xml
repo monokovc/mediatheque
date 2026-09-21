@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Mediatheque</string>
+    <string name="perm_title">Accès au disque</string>
+    <string name="perm_text">Pour lire les vidéos du disque USB, Mediatheque a besoin de l\'accès à tous les fichiers. Sur l\'écran suivant, active « Autoriser l\'accès à tous les fichiers ».</string>
+    <string name="ok">OK</string>
+    <string name="loading">Démarrage de la médiathèque…</string>
+</resources>
