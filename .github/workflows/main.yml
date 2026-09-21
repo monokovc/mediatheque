@@ -20,10 +20,18 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
+      - name: Trouver le projet
+        id: p
+        run: |
+          d=$(dirname "$(find . -name settings.gradle -not -path '*/node_modules/*' | head -1)")
+          echo "dir=$d" >> "$GITHUB_OUTPUT"
+          echo "Projet dans : $d"
+          ls -la "$d"
       - name: Compiler
+        working-directory: ${{ steps.p.outputs.dir }}
         run: gradle assembleDebug --no-daemon --stacktrace
       - name: Renommer
-        run: cp app/build/outputs/apk/debug/app-debug.apk Mediatheque.apk
+        run: cp "${{ steps.p.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk" Mediatheque.apk
       - uses: actions/upload-artifact@v4
         with:
           name: Mediatheque-apk
