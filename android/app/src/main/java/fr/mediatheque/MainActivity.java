@@ -67,10 +67,7 @@ public class MainActivity extends AppCompatActivity {
                 loading.setText("Erreur : " + App.serverError);
                 return;
             }
-            boolean up = false;
-            if (App.serverPort > 0) {
-                try (Socket sock = new Socket("127.0.0.1", App.serverPort)) { up = true; } catch (Exception ignored) {}
-            }
+            boolean up = App.serverStarted && App.serverPort > 0;
             if (up) {
                 loading.setVisibility(View.GONE);
                 if (!loaded) { loaded = true; web.loadUrl(url()); }
