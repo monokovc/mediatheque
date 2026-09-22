@@ -47,7 +47,8 @@ VIDEO_EXT = {".mkv", ".mp4", ".avi", ".m4v", ".mov", ".wmv", ".flv", ".webm",
 
 IGNORED_DIRS = {"$recycle.bin", "system volume information", "windows",
                 "program files", "program files (x86)", "programdata",
-                "appdata", "recovery", "msocache", "node_modules", "mediatheque-data"}
+                "appdata", "recovery", "msocache", "node_modules", "mediatheque-data",
+                "android", "lost.dir", ".thumbnails", "mediatheque"}
 
 MIN_MEDIA_SIZE = 150 * 1024 * 1024     # en dessous -> "Autres" (sauf si episode)
 MIN_KEEP_SIZE = 5 * 1024 * 1024        # en dessous -> ignore
@@ -362,6 +363,8 @@ def drive_info(root):
                 label, serial = buf.value, "%08X" % ser.value
         except Exception:
             pass
+    if ANDROID and root.rstrip("/") in ("/storage/emulated/0", "/sdcard"):
+        label = "Stockage interne"
     if not label:
         label = os.path.basename(root.rstrip("/\\")) or root.rstrip("\\")
     if not serial:
@@ -404,9 +407,10 @@ def list_drives():
                     p = os.path.join(base, entry)
                     if os.path.isdir(p) and os.access(p, os.R_OK):
                         found.append(p)          # disque USB / carte SD
-        for p in ("/storage/emulated/0/Movies", "/storage/emulated/0/Download", "/storage/emulated/0/DCIM"):
-            if os.path.isdir(p):
-                found.append(p)
+        for p in ("/storage/emulated/0", "/sdcard"):
+            if os.path.isdir(p) and os.access(p, os.R_OK):
+                found.append(p)            # stockage interne du telephone / de la tablette
+                break
     else:
         for base in ("/media", "/run/media", "/Volumes", "/mnt"):
             if os.path.isdir(base):
@@ -1075,7 +1079,7 @@ select{background:var(--card);color:var(--txt);border:none;padding:7px 10px;bord
 <div id="resume" style="display:none;padding:10px 14px 0"><div style="color:var(--dim);font-size:12px;margin-bottom:6px">REPRENDRE</div><div id="resumeRow" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px"></div></div>
 <div id="st">Chargement...</div>
 <div id="fw" style="display:none;background:#5a1a1a;color:#ffc9c9;padding:8px 14px;font-size:13px">🔒 Le pare-feu Windows bloque l'accès depuis le téléphone / la télé. <button id="fwbtn" class="b" style="background:#f7768e;color:#0b0d10;margin-left:8px">Autoriser (Windows demandera Oui)</button></div>
-<div id="offline" style="display:none;background:#5a3a1a;color:#ffd9a8;padding:8px 14px;font-size:13px">✈️ Hors connexion : catalogue mémorisé sur cet appareil. La lecture nécessite le PC (ou un épisode téléchargé à l'avance).</div>
+<div id="offline" style="display:none;background:#5a3a1a;color:#ffd9a8;padding:8px 14px;font-size:13px">✈️ Hors connexion : catalogue mémorisé sur cet appareil. La lecture nécessite l'appareil qui héberge la médiathèque (ou un épisode téléchargé à l'avance).</div>
 <div id="share" style="display:none;background:#1b2a4a;color:#dbe6ff;padding:10px 14px;font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
   <span>📱 Sur téléphone, tablette ou télé (même Wi‑Fi), ouvre : <b id="url"></b></span>
   <span style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
@@ -1100,7 +1104,7 @@ let cat=localStorage.getItem("cat")||"Tout",data=null,q="",sort=localStorage.get
 if(!CATS.includes(cat))cat="Tout";
 const F={disk:"",added:"",year:"",lang:"",quality:"",status:"",seasons:"",letter:""};
 let PROG={},OFFLINE=false;
-if("serviceWorker" in navigator&&!window.__DATA__){navigator.serviceWorker.register("/sw.js").catch(()=>{});navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="thumbsDone"){document.getElementById("st").textContent="Images mémorisées pour le hors-ligne ("+e.data.n+")"}})}
+if("serviceWorker" in navigator&&!window.__DATA__&&!window.__EMBEDDED__){navigator.serviceWorker.register("/sw.js").catch(()=>{});navigator.serviceWorker.addEventListener("message",e=>{if(e.data&&e.data.type==="thumbsDone"){document.getElementById("st").textContent="Images mémorisées pour le hors-ligne ("+e.data.n+")"}})}
 function flushQueue(){let qd=[];try{qd=JSON.parse(localStorage.getItem("pending")||"[]")}catch(e){}if(!qd.length)return;localStorage.setItem("pending","[]");qd.forEach(([u,o])=>post(u,o))}
 function post(url,obj){if(STATIC){if(url==="/api/progress"){if(obj.reset)delete PROG[obj.id];else PROG[obj.id]={t:obj.t||0,dur:obj.dur||0,done:obj.done!==undefined?obj.done:(obj.dur&&obj.t>=obj.dur*0.92),at:Date.now()/1000}}
   if(url==="/api/progress_many")obj.ids.forEach(id=>{if(obj.done)PROG[id]={t:0,dur:0,done:true,at:Date.now()/1000};else delete PROG[id]});
@@ -1325,7 +1329,7 @@ document.getElementById("thm").onclick=async()=>{await fetch("/api/thumbs");load
 document.getElementById("thmstop").onclick=async()=>{await fetch("/api/thumbs_stop");load()};
 document.getElementById("quit").onclick=async()=>{if(confirm("Fermer la Mediatheque ? (le telephone n'y aura plus acces)")){await fetch("/api/quit").catch(()=>{});document.body.innerHTML='<div class="empty">Mediatheque fermee. Tu peux fermer cette fenetre.</div>';setTimeout(()=>window.close(),800)}};
 async function load(){if(STATIC){data=STATIC;PROG=Object.assign({},STATIC.progress||{});try{Object.assign(PROG,JSON.parse(localStorage.getItem("prog-static")||"{}"))}catch(e){}document.getElementById("share").style.display="none";document.getElementById("st").textContent="Mode hors-ligne · catalogue du "+new Date((STATIC.exported||0)*1000).toLocaleDateString("fr-FR")+" · lecture avec le lecteur de l'appareil";render();return}try{const r=await fetch("/api/library");const off=r.headers.get("X-Offline")==="1";data=await r.json();if(!off)flushQueue();
-  OFFLINE=off;document.getElementById("offline").style.display=off?"":"none";
+  OFFLINE=off&&!window.__EMBEDDED__;document.getElementById("offline").style.display=OFFLINE?"":"none";
   if(data.embedded){["quit","pwa","fwbtn"].forEach(i=>{const e=document.getElementById(i);if(e)e.style.display="none"});const ia=document.querySelector('a[href="/installer"]');if(ia)ia.style.display="none"}document.getElementById("fw").style.display=(data.firewall===false&&["localhost","127.0.0.1"].includes(location.hostname))?"":"none";document.getElementById("share").style.display=off?"none":"flex";
   const srvProg=data.progress||{};let qd=[];try{qd=JSON.parse(localStorage.getItem("pending")||"[]")}catch(e){}
   qd.forEach(([u,o])=>{if(u==="/api/progress"){if(o.reset)delete srvProg[o.id];else srvProg[o.id]={t:o.t||0,dur:o.dur||0,done:o.done!==undefined?o.done:(o.dur&&o.t>=o.dur*0.92),at:Date.now()/1000}}if(u==="/api/progress_many")o.ids.forEach(id=>{if(o.done)srvProg[id]={t:0,dur:0,done:true,at:Date.now()/1000};else delete srvProg[id]})});
@@ -1438,7 +1442,7 @@ class Handler(BaseHTTPRequestHandler):
         p = urlparse(self.path)
         parts = [unquote(x) for x in p.path.split("/") if x]
         if not parts:
-            return self._send(200, HTML)
+            return self._send(200, HTML.replace("/*__STATIC__*/", "window.__EMBEDDED__=true;") if EMBEDDED else HTML)
         if parts == ["mediatheque.py"]:
             with open(os.path.abspath(sys.argv[0]), "rb") as f:
                 return self._send(200, f.read(), "text/x-python; charset=utf-8",
